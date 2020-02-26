@@ -1,6 +1,15 @@
 #define FASTLED_ESP8266_NODEMCU_PIN_ORDER
+//#define FASTLED_ALLOW_INTERRUPTS 1
+//#define FASTLED_INTERRUPT_RETRY_COUNT 1
 
+#include <string>
 #include <FastLED.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266WiFiMulti.h>
+#include <ArduinoOTA.h>
+
+ESP8266WiFiMulti wifiMulti;  
+
 #define NUM_BEAM_LEDS 64
 #define NUM_LETTER_LEDS 107
 #define NUM_TRON_LETTER_LEDS 88
@@ -82,14 +91,33 @@ void introSuitLoop() {
 
 void addMoveTo(Point start, Point end, uint8_t &pos,
                Point points[NUM_TRON_LETTER_LEDS]) {
+  
   if (start.x != end.x) {
     if (start.x < end.x) {
       for (uint8_t i = 0; i < end.x - start.x; i++) {
+        if(pos > NUM_TRON_LETTER_LEDS - 1){
+          Serial.println("OOB SON");
+          return;
+        }
+        if(start.x + i > 24){
+          Serial.println("WTF SON");
+           Serial.println(String(start.x));
+           Serial.println(i);
+        }
         points[pos] = Point(start.x + i, start.y);
         pos++;
       }
     } else {
-      for (uint8_t i = 0; i <= start.x - end.x; i++) {
+      for (uint8_t i = 0; i < start.x - end.x; i++) {
+        if(pos > NUM_TRON_LETTER_LEDS - 1){
+          Serial.println("OOB SON");
+          return;
+        }
+        if(start.x - i > 23){
+          Serial.println("WTF SON");
+           Serial.println(String(start.x));
+           Serial.println(i);
+        }
         points[pos] = Point(start.x - i, start.y);
         pos++;
       }
@@ -97,11 +125,19 @@ void addMoveTo(Point start, Point end, uint8_t &pos,
   } else {
     if (start.y < end.y) {
       for (uint8_t i = 0; i < end.y - start.y; i++) {
+        if(pos > NUM_TRON_LETTER_LEDS - 1){
+          Serial.println("OOB SON");
+          return;
+        }
         points[pos] = Point(start.x, start.y + i);
         pos++;
       }
     } else {
-      for (uint8_t i = 0; i <= start.y - end.y; i++) {
+      for (uint8_t i = 0; i < start.y - end.y; i++) {
+        if(pos > NUM_TRON_LETTER_LEDS - 1){
+          Serial.println("OOB SON");
+          return;
+        }
         points[pos] = Point(start.x, start.y - i);
         pos++;
       }
@@ -111,6 +147,7 @@ void addMoveTo(Point start, Point end, uint8_t &pos,
 
 void initLetterCoords() {
   for (uint8_t i = 0; i < LETTER_ROW_LEN; i++) {
+    Serial.println();
     lettersToStrip[0][LETTER_ROW_LEN - i - 1] = i;
     lettersToStrip[1][i] = LETTER_ROW_LEN + i;
     lettersToStrip[2][LETTER_ROW_LEN - i - 1] = LETTER_ROW_LEN * 2 + i;
@@ -120,7 +157,7 @@ void initLetterCoords() {
 
 Point *getTronLetterPattern() {
   uint8_t pos = 0;
-  Point *points = new Point[88];
+  Point *points = new Point[NUM_TRON_LETTER_LEDS];
   addMoveTo(Point(0, 0), Point(21, 0), pos, points);
   addMoveTo(Point(21, 0), Point(21, 3), pos, points);
   addMoveTo(Point(21, 3), Point(0, 3), pos, points);
@@ -132,40 +169,90 @@ Point *getTronLetterPattern() {
   return points;
 }
 
-void setup() {
-  delay(1000);
-  // FastLED.addLeds<NEOPIXEL, DATA_PIN>(beamLeds, NUM_BEAM_LEDS);
-  FastLED.addLeds<NEOPIXEL, LETTERS_DATA_PIN>(letterLeds, NUM_LETTER_LEDS);
-  //FastLED.addLeds<NEOPIXEL, SUIT_DATA_PIN>(suitLeds, NUM_SUIT_LEDS);
-  // initBeam();
-  startTime = millis();
-  initLetterCoords();
-  pointList = getTronLetterPattern();
-}
-
 void loopLetters() {
   static uint8_t pos = 0;
 
   EVERY_N_MILLISECONDS(60) {
+    if (pos > NUM_TRON_LETTER_LEDS - 1) {
+      return;
+    }
     Point point = pointList[pos];
+
+    Serial.println("POS: " + String(pos) + "Lighting: " + String(point.x) + "," + String(point.y));
     if (pos > 1) {
       setLetterLed(pointList[pos - 1], beamColor);
     }
     setLetterLed(pointList[pos], leadLetterColor);
 
-    if (pos == NUM_LETTER_LEDS) {
+    if (pos == NUM_TRON_LETTER_LEDS) {
       setLetterLed(pointList[pos - 1], beamColor);
     }
 
     pos++;
-    if (pos > NUM_LETTER_LEDS) {
+    if (pos > NUM_TRON_LETTER_LEDS - 1) {
       pos = 0;
     }
     FastLED.show();
   }
 }
 
+void setupOTA(){
+  Serial.begin(115200);
+  delay(10);
+  Serial.println('\n');
+  wifiMulti.addAP("HackNet", "thecodemanhackedthisrouter");  
+
+  Serial.println("Connecting ...");
+  while (wifiMulti.run() != WL_CONNECTED) { // Wait for the Wi-Fi to connect
+    delay(250);
+    Serial.print('.');
+  }
+  Serial.println('\n');
+  Serial.print("Connected to ");
+  Serial.println(WiFi.SSID());              // Tell us what network we're connected to
+  Serial.print("IP address:\t");
+  Serial.println(WiFi.localIP());           // Send the IP address of the ESP8266 to the computer
+  
+  ArduinoOTA.setHostname("ESP8266");
+  ArduinoOTA.setPassword("esp8266");
+
+  ArduinoOTA.onStart([]() {
+    Serial.println("Start");
+  });
+  ArduinoOTA.onEnd([]() {
+   Serial.println("\nEnd");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+  });
+  ArduinoOTA.begin();
+  Serial.println("OTA ready");
+}
+
+void setup() {
+  setupOTA();
+  delay(200);
+  FastLED.addLeds<NEOPIXEL, LETTERS_DATA_PIN>(letterLeds, NUM_LETTER_LEDS);
+
+  // FastLED.addLeds<NEOPIXEL, DATA_PIN>(beamLeds, NUM_BEAM_LEDS);
+  
+  // //FastLED.addLeds<NEOPIXEL, SUIT_DATA_PIN>(suitLeds, NUM_SUIT_LEDS);
+  // initBeam();
+  startTime = millis();
+  initLetterCoords();
+  pointList = getTronLetterPattern();
+}
+
 void loop() {
+  ArduinoOTA.handle();
   // if (!beamIntroTriggered)
   // {
   //   introBeamLoop();
