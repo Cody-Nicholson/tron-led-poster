@@ -1,6 +1,4 @@
 #define FASTLED_ESP8266_NODEMCU_PIN_ORDER
-//#define FASTLED_ALLOW_INTERRUPTS 1
-//#define FASTLED_INTERRUPT_RETRY_COUNT 1
 
 #include <string>
 #include <FastLED.h>
@@ -43,8 +41,8 @@ boolean suitIntro = 0;
 const CHSV ringColor = CHSV(HUE_BLUE, 255, 80);
 const CHSV ringInnerColor = CHSV(HUE_BLUE, 255, 70);
 const CHSV ringOuterColor = CHSV(HUE_BLUE, 255, 50);
-const CHSV beamColor = CHSV(HUE_BLUE, 255, 50);
-const CHSV leadLetterColor = CHSV(HUE_BLUE, 0, 50);
+const CHSV beamColor = CHSV(HUE_AQUA, 255, 50);
+const CHSV leadLetterColor = CHSV(HUE_BLUE, 20, 50);
 
 const CHSV suitColorFull = CHSV(HUE_BLUE, 100, 75);
 const CHSV suitColorHalf = CHSV(HUE_BLUE, 100, 40);
@@ -95,29 +93,11 @@ void addMoveTo(Point start, Point end, uint8_t &pos,
   if (start.x != end.x) {
     if (start.x < end.x) {
       for (uint8_t i = 0; i < end.x - start.x; i++) {
-        if(pos > NUM_TRON_LETTER_LEDS - 1){
-          Serial.println("OOB SON");
-          return;
-        }
-        if(start.x + i > 24){
-          Serial.println("WTF SON");
-           Serial.println(String(start.x));
-           Serial.println(i);
-        }
         points[pos] = Point(start.x + i, start.y);
         pos++;
       }
     } else {
       for (uint8_t i = 0; i < start.x - end.x; i++) {
-        if(pos > NUM_TRON_LETTER_LEDS - 1){
-          Serial.println("OOB SON");
-          return;
-        }
-        if(start.x - i > 23){
-          Serial.println("WTF SON");
-           Serial.println(String(start.x));
-           Serial.println(i);
-        }
         points[pos] = Point(start.x - i, start.y);
         pos++;
       }
@@ -125,19 +105,11 @@ void addMoveTo(Point start, Point end, uint8_t &pos,
   } else {
     if (start.y < end.y) {
       for (uint8_t i = 0; i < end.y - start.y; i++) {
-        if(pos > NUM_TRON_LETTER_LEDS - 1){
-          Serial.println("OOB SON");
-          return;
-        }
         points[pos] = Point(start.x, start.y + i);
         pos++;
       }
     } else {
       for (uint8_t i = 0; i < start.y - end.y; i++) {
-        if(pos > NUM_TRON_LETTER_LEDS - 1){
-          Serial.println("OOB SON");
-          return;
-        }
         points[pos] = Point(start.x, start.y - i);
         pos++;
       }
@@ -147,7 +119,6 @@ void addMoveTo(Point start, Point end, uint8_t &pos,
 
 void initLetterCoords() {
   for (uint8_t i = 0; i < LETTER_ROW_LEN; i++) {
-    Serial.println();
     lettersToStrip[0][LETTER_ROW_LEN - i - 1] = i;
     lettersToStrip[1][i] = LETTER_ROW_LEN + i;
     lettersToStrip[2][LETTER_ROW_LEN - i - 1] = LETTER_ROW_LEN * 2 + i;
@@ -164,8 +135,7 @@ Point *getTronLetterPattern() {
   addMoveTo(Point(0, 3), Point(0, 1), pos, points);
   addMoveTo(Point(0, 1), Point(20, 1), pos, points);
   addMoveTo(Point(20, 1), Point(20, 2), pos, points);
-  addMoveTo(Point(20, 2), Point(2, 2), pos, points);
-  addMoveTo(Point(2, 2), Point(20, 2), pos, points);
+  addMoveTo(Point(20, 2), Point(0, 2), pos, points); // Last point doesn't fill
   return points;
 }
 
@@ -173,24 +143,14 @@ void loopLetters() {
   static uint8_t pos = 0;
 
   EVERY_N_MILLISECONDS(60) {
-    if (pos > NUM_TRON_LETTER_LEDS - 1) {
-      return;
-    }
-    Point point = pointList[pos];
-
-    Serial.println("POS: " + String(pos) + "Lighting: " + String(point.x) + "," + String(point.y));
-    if (pos > 1) {
+    if (pos > 0) {
       setLetterLed(pointList[pos - 1], beamColor);
     }
     setLetterLed(pointList[pos], leadLetterColor);
-
-    if (pos == NUM_TRON_LETTER_LEDS) {
-      setLetterLed(pointList[pos - 1], beamColor);
-    }
-
     pos++;
     if (pos > NUM_TRON_LETTER_LEDS - 1) {
       pos = 0;
+      setLetterLed(pointList[NUM_TRON_LETTER_LEDS - 1], beamColor);
     }
     FastLED.show();
   }
@@ -215,6 +175,7 @@ void setupOTA(){
   
   ArduinoOTA.setHostname("ESP8266");
   ArduinoOTA.setPassword("esp8266");
+  ArduinoOTA.setPort(8266);
 
   ArduinoOTA.onStart([]() {
     Serial.println("Start");
@@ -239,7 +200,6 @@ void setupOTA(){
 
 void setup() {
   setupOTA();
-  delay(200);
   FastLED.addLeds<NEOPIXEL, LETTERS_DATA_PIN>(letterLeds, NUM_LETTER_LEDS);
 
   // FastLED.addLeds<NEOPIXEL, DATA_PIN>(beamLeds, NUM_BEAM_LEDS);
