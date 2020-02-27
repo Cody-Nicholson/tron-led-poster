@@ -5,6 +5,7 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
 #include <ArduinoOTA.h>
+#include <creds.h>
 
 ESP8266WiFiMulti wifiMulti;  
 
@@ -81,6 +82,98 @@ void fill_solid( struct CRGB * targetArray, int startFill, int numToFill,
     for( int i = startFill; i < startFill + numToFill; i++) {
         targetArray[i] = hsvColor;
     }
+}
+/* Map matrix to strip position  */
+void initBeam()
+{
+  for (uint8_t i = 0; i < 23; i++)
+  {
+    beamToStrip[i][0] = i;
+    beamToStrip[22 - i][1] = i + 23;
+    beamToStrip[i][2] = i + 46 - 5;
+
+    beamToStrip[0][1] = INACTIVE_SLOT;
+    beamToStrip[1][1] = INACTIVE_SLOT;
+
+    beamToStrip[0][2] = INACTIVE_SLOT;
+    beamToStrip[1][2] = INACTIVE_SLOT;
+    beamToStrip[2][2] = INACTIVE_SLOT;
+  }
+}
+
+boolean isInBeamRange(uint8_t x)
+{
+  return (x - BEAM_COL_LEN) * (x) <= 0;
+}
+
+void setBeamLed(uint8_t ledNum, CRGB color)
+{
+  if (ledNum != INACTIVE_SLOT)
+  {
+    beamLeds[ledNum] = color;
+  }
+}
+
+/* Safe array */
+void setBeamLed(uint8_t x, uint8_t y, CHSV color)
+{
+  if (isInBeamRange(x))
+  {
+    setBeamLed(beamToStrip[x][y], color);
+  }
+}
+
+void setBeamRow(uint8_t rowNum, CRGB color)
+{
+  setBeamLed(beamToStrip[rowNum][0], color);
+  setBeamLed(beamToStrip[rowNum][1], color);
+  setBeamLed(beamToStrip[rowNum][2], color);
+}
+
+void waveBeamLoop()
+{
+  static int8_t wavePos = 22;
+  EVERY_N_MILLISECONDS_I(thisTimer, ringWaveSpeed)
+  {
+    /* Replace Normal beam color  */
+    setBeamLed(wavePos - 3, 0, beamColor);
+    setBeamLed(wavePos - 3, 2, beamColor);
+    setBeamLed(wavePos - 2, 0, ringOuterColor);
+    setBeamLed(wavePos - 2, 2, ringOuterColor);
+    setBeamLed(wavePos - 1, 0, ringInnerColor);
+    setBeamLed(wavePos - 1, 2, ringInnerColor);
+    setBeamLed(wavePos, 0, ringColor);
+    setBeamLed(wavePos, 2, ringColor);
+    setBeamLed(wavePos + 1, 0, ringInnerColor);
+    setBeamLed(wavePos + 1, 2, ringInnerColor);
+    setBeamLed(wavePos + 2, 0, ringOuterColor);
+    setBeamLed(wavePos + 2, 2, ringOuterColor);
+    setBeamLed(wavePos + 3, 0, beamColor);
+    setBeamLed(wavePos + 3, 2, beamColor);
+
+    FastLED.show();
+    wavePos++;
+    if (wavePos >= BEAM_COL_LEN + 5)
+    {
+      wavePos = 0;
+    }
+  }
+}
+
+void introBeamLoop()
+{
+  static uint8_t rowNumber = BEAM_COL_LEN;
+
+  EVERY_N_MILLISECONDS_I(thisTimer, durationA)
+  {
+    setBeamRow(rowNumber, beamColor);
+    if (rowNumber <= 0)
+    {
+      beamIntroTriggered = true;
+    }
+    FastLED.show();
+    rowNumber--;
+  }
 }
 
 void introSuitLoop() {
@@ -193,7 +286,7 @@ void setupOTA(){
   Serial.begin(115200);
   delay(10);
   Serial.println('\n');
-  wifiMulti.addAP("HackNet", "thecodemanhackedthisrouter");  
+  wifiMulti.addAP(ROUTER_SSID, ROUTER_PASS);  
 
   Serial.println("Connecting ...");
   while (wifiMulti.run() != WL_CONNECTED) { // Wait for the Wi-Fi to connect
