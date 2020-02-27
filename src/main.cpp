@@ -9,22 +9,29 @@
 ESP8266WiFiMulti wifiMulti;  
 
 #define NUM_BEAM_LEDS 64
+#define BEAM_COL_LEN 22
+
 #define NUM_LETTER_LEDS 107
 #define NUM_TRON_LETTER_LEDS 88
+#define LETTER_ROW_LEN 22
+
+#define NUM_SUIT_LEDS 25
 #define NUM_LEFT_SUIT_LEDS 14
 #define NUM_RIGHT_SUIT_LEDS 11
-#define NUM_SUIT_LEDS 25
-#define BEAM_LEN 22
+
+#define NUM_LINE_LEDS 7
+
 #define LETTERS_DATA_PIN 1
+#define LINE_DATA_PIN 1
 #define SUIT_DATA_PIN 2
-#define LETTER_ROW_LEN 22
 
 CRGB beamLeds[NUM_BEAM_LEDS];
 CRGB letterLeds[NUM_LETTER_LEDS];
 CRGB suitLeds[NUM_SUIT_LEDS];
+CRGB lineLeds[NUM_LINE_LEDS];
 
 const uint8_t INACTIVE_SLOT = 255;
-uint8_t beamToStrip[BEAM_LEN + 1][3];
+uint8_t beamToStrip[BEAM_COL_LEN + 1][3];
 uint8_t lettersToStrip[4][LETTER_ROW_LEN];
 
 uint16_t durationA = 40;    // How often to run Event A [milliseconds]
@@ -33,19 +40,19 @@ uint16_t startSuitDelay = 2000;
 uint8_t ringWaveSpeed = 50;
 unsigned long startTime;
 
-boolean setBlack = false;
-
 boolean beamIntroTriggered = 0;
 boolean suitIntro = 0;
 
 const CHSV ringColor = CHSV(HUE_BLUE, 255, 80);
 const CHSV ringInnerColor = CHSV(HUE_BLUE, 255, 70);
 const CHSV ringOuterColor = CHSV(HUE_BLUE, 255, 50);
-const CHSV beamColor = CHSV(HUE_AQUA, 255, 50);
+const CHSV beamColor = CHSV(HUE_BLUE, 255, 50);
 const CHSV leadLetterColor = CHSV(HUE_BLUE, 20, 50);
 
 const CHSV suitColorFull = CHSV(HUE_BLUE, 100, 75);
 const CHSV suitColorHalf = CHSV(HUE_BLUE, 100, 40);
+
+const CHSV lineColor = CHSV(HUE_BLUE, 100, 40);
 
 class Point {
  public:
@@ -68,22 +75,48 @@ void setLetterLed(Point point, CRGB color) {
   letterLeds[lettersToStrip[point.y][point.x]] = color;
 }
 
+void fill_solid( struct CRGB * targetArray, int startFill, int numToFill,
+                 const struct CHSV& hsvColor)
+{
+    for( int i = startFill; i < startFill + numToFill; i++) {
+        targetArray[i] = hsvColor;
+    }
+}
+
 void introSuitLoop() {
   uint16_t timeDelta = millis() - startTime;
+
+  /* LEFT SUIT  */
   if (timeDelta > startSuitDelay + 383) {
     fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorHalf);
   }
 
-  if (timeDelta > startSuitDelay + 416 + 16 * 2) {
+  if (timeDelta > startSuitDelay + 448) {
     fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorFull);
   }
 
-  if (timeDelta > startSuitDelay + 499 + 16 * 2) {
+  if (timeDelta > startSuitDelay + 532) {
     fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorHalf);
   }
 
-  if (timeDelta > startSuitDelay + 749 + 16 * 2) {
+  if (timeDelta > startSuitDelay + 781) {
     fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorFull);
+  }
+
+  if (timeDelta > startSuitDelay + 448) {
+    fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS, suitColorHalf);
+  }
+
+  if (timeDelta > startSuitDelay + 532) {
+    fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS, suitColorFull);
+  }
+
+  if (timeDelta > startSuitDelay + 781) {
+    fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS, suitColorHalf);
+  }
+
+  if (timeDelta > startSuitDelay + 835) {
+    fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS, suitColorFull);
   }
 }
 
@@ -204,7 +237,7 @@ void setup() {
 
   // FastLED.addLeds<NEOPIXEL, DATA_PIN>(beamLeds, NUM_BEAM_LEDS);
   
-  // //FastLED.addLeds<NEOPIXEL, SUIT_DATA_PIN>(suitLeds, NUM_SUIT_LEDS);
+  FastLED.addLeds<NEOPIXEL, SUIT_DATA_PIN>(suitLeds, NUM_SUIT_LEDS);
   // initBeam();
   startTime = millis();
   initLetterCoords();
@@ -223,6 +256,6 @@ void loop() {
   // }
   loopLetters();
   // static CEveryNMilliseconds suitTimer(20000);
-  //introSuitLoop();
+  introSuitLoop();
   // fill_solid(letterLeds, NUM_LETTER_LEDS, CRGB(10, 0, 0));
 }
