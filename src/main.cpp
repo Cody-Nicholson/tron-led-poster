@@ -16,9 +16,10 @@ ESP8266WiFiMulti wifiMulti;
 #define NUM_TRON_LETTER_LEDS 88
 #define LETTER_ROW_LEN 22
 
-#define NUM_SUIT_LEDS 26 // Includes Recognizer
+#define NUM_SUIT_LEDS 26  // Includes Recognizer
 #define NUM_LEFT_SUIT_LEDS 14
 #define NUM_RIGHT_SUIT_LEDS 11
+#define RECOGNIZER_INDEX 25
 
 #define NUM_LINE_LEDS 8
 
@@ -37,7 +38,6 @@ uint8_t beamToStrip[BEAM_COL_LEN + 1][3];
 uint8_t lettersToStrip[4][LETTER_ROW_LEN];
 
 uint16_t durationA = 40;    // How often to run Event A [milliseconds]
-uint16_t durationB = 2000;  // How long after A to run Event B [milliseconds]
 uint16_t startSuitDelay = 2000;
 uint8_t ringWaveSpeed = 50;
 unsigned long startTime;
@@ -45,16 +45,16 @@ unsigned long startTime;
 boolean beamIntroTriggered = 0;
 boolean suitIntro = 0;
 
-const CHSV ringColor = CHSV(HUE_BLUE, 255, 80);
-const CHSV ringInnerColor = CHSV(HUE_BLUE, 255, 70);
-const CHSV ringOuterColor = CHSV(HUE_BLUE, 255, 50);
-const CHSV beamColor = CHSV(HUE_BLUE, 255, 50);
-const CHSV leadLetterColor = CHSV(HUE_BLUE, 20, 50);
+const CHSV ringColor = CHSV(HUE_BLUE, 200, 120);
+const CHSV ringInnerColor = CHSV(HUE_BLUE, 200, 90);
+const CHSV ringOuterColor = CHSV(HUE_BLUE, 200, 75);
+const CHSV beamColor = CHSV(HUE_BLUE, 225, 60);
+const CHSV leadLetterColor = CHSV(HUE_BLUE, 20, 100);
 
-const CHSV suitColorFull = CHSV(HUE_BLUE, 100, 75);
-const CHSV suitColorHalf = CHSV(HUE_BLUE, 100, 40);
+const CHSV suitColorFull = CHSV(HUE_BLUE, 100, 90);
+const CHSV suitColorHalf = CHSV(HUE_ORANGE, 100, 40);
 
-const CHSV lineColor = CHSV(HUE_BLUE, 100, 40);
+const CHSV lineColor = CHSV(HUE_BLUE, 100, 70);
 
 class Point {
  public:
@@ -153,7 +153,7 @@ void ringWaveBeamLoop() {
     setBeamRow(wavePos - 3, beamColor);
     setBeamRow(wavePos - 2, ringOuterColor);
     setBeamRow(wavePos - 1, ringInnerColor);
-    setBeamRow(wavePos, beamColor);
+    setBeamRow(wavePos, ringColor);
     setBeamRow(wavePos + 1, ringInnerColor);
     setBeamRow(wavePos + 2, ringOuterColor);
     setBeamRow(wavePos + 3, beamColor);
@@ -198,7 +198,7 @@ void introSuitLoop() {
   if (timeDelta > startSuitDelay + 781) {
     fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorFull);
   }
-
+  
   if (timeDelta > startSuitDelay + 448) {
     fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS,
                suitColorHalf);
@@ -330,19 +330,33 @@ void setupOTA() {
   Serial.println("OTA ready");
 }
 
+void breathLoop() {
+  float breath = (exp(sin(millis() / 2000.0 * PI)) - 0.36787944) * 108.0;
+  breath = map(breath, 0, 255, 0, 100);
+  suitLeds[RECOGNIZER_INDEX] = CHSV(HUE_BLUE, 255, breath);
+}
+
 void setupLetters() {
   initLetterCoords();
   pointList = getTronLetterPattern();
 }
 
+void lineOn() {
+  for (int i = 0; i < NUM_LINE_LEDS; i++) {
+    lineLeds[i] = beamColor;
+  }
+}
+
 void setup() {
   setupOTA();
-  FastLED.setMaxPowerInVoltsAndMilliamps(5, 800);
-  // FastLED.addLeds<NEOPIXEL, LETTERS_DATA_PIN>(letterLeds, NUM_LETTER_LEDS);
+  FastLED.setMaxPowerInVoltsAndMilliamps(5, 8000);
   FastLED.addLeds<NEOPIXEL, BEAM_DATA_PIN>(beamLeds, NUM_BEAM_LEDS);
   FastLED.addLeds<NEOPIXEL, SUIT_DATA_PIN>(suitLeds, NUM_SUIT_LEDS);
+  FastLED.addLeds<NEOPIXEL, LETTERS_DATA_PIN>(letterLeds, NUM_LETTER_LEDS);
+  FastLED.addLeds<NEOPIXEL, LINE_DATA_PIN>(lineLeds, NUM_LINE_LEDS);
   initBeam();
-  // setupLetters();
+  setupLetters();
+  lineOn();
   startTime = millis();
 }
 
@@ -356,10 +370,8 @@ void mainBeamLoop() {
 
 void loop() {
   ArduinoOTA.handle();
-
   mainBeamLoop();
-  // loopLetters();
-  // static CEveryNMilliseconds suitTimer(20000);
+  loopLetters();
   introSuitLoop();
-  // fill_solid(letterLeds, NUM_LETTER_LEDS, CRGB(10, 0, 0));
+  breathLoop();
 }
