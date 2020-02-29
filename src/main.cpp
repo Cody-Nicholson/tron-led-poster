@@ -10,7 +10,7 @@
 ESP8266WiFiMulti wifiMulti;
 
 #define NUM_BEAM_LEDS 64
-#define BEAM_COL_LEN 22
+#define BEAM_COL_LEN 23
 
 #define NUM_LETTER_LEDS 107
 #define NUM_TRON_LETTER_LEDS 88
@@ -34,10 +34,10 @@ CRGB letterLeds[NUM_LETTER_LEDS];
 CRGB lineLeds[NUM_LINE_LEDS];
 
 const uint8_t INACTIVE_SLOT = 255;
-uint8_t beamToStrip[BEAM_COL_LEN + 1][3];
+uint8_t beamToStrip[BEAM_COL_LEN][3];
 uint8_t lettersToStrip[4][LETTER_ROW_LEN];
 
-uint16_t durationA = 40;    // How often to run Event A [milliseconds]
+uint16_t durationA = 40;  // How often to run Event A [milliseconds]
 uint16_t startSuitDelay = 2000;
 uint8_t ringWaveSpeed = 50;
 unsigned long startTime;
@@ -54,7 +54,6 @@ const CHSV beamColor = CHSV(HUE_BLUE, 190, 125);
 // const CHSV ringInnerColor = CHSV(HUE_BLUE, 200, 100);
 // const CHSV ringOuterColor = CHSV(HUE_BLUE, 200, 85);
 // const CHSV beamColor = CHSV(HUE_BLUE, 225, 60);
-
 
 const CHSV letterBgColor = CHSV(HUE_BLUE, 225, 60);
 const CHSV leadLetterColor = CHSV(HUE_BLUE, 20, 100);
@@ -95,9 +94,9 @@ void fill_solid(struct CRGB *targetArray, int startFill, int numToFill,
 }
 /* Map matrix to strip position  */
 void initBeam() {
-  for (uint8_t i = 0; i < 23; i++) {
+  for (uint8_t i = 0; i < BEAM_COL_LEN; i++) {
     beamToStrip[i][0] = i;
-    beamToStrip[22 - i][1] = i + 23;
+    beamToStrip[BEAM_COL_LEN - 1 - i][1] = i + BEAM_COL_LEN;
     beamToStrip[i][2] = i + 46 - 5;
 
     beamToStrip[0][1] = INACTIVE_SLOT;
@@ -109,7 +108,20 @@ void initBeam() {
   }
 }
 
-boolean isInBeamRange(uint8_t x) { return (x - BEAM_COL_LEN) * (x) <= 0; }
+boolean isInBeamRange(uint8_t x) { return x >= 0 && x < BEAM_COL_LEN; }
+
+void introBeamLoop() {
+  static uint8_t rowNumber = BEAM_COL_LEN - 1;
+
+  EVERY_N_MILLISECONDS_I(thisTimer, durationA) {
+    setBeamRow(rowNumber, beamColor);
+    if (rowNumber <= 0) {
+      beamIntroTriggered = true;
+    }
+    FastLED.show();
+    rowNumber--;
+  }
+}
 
 void setBeamLed(uint8_t ledNum, CRGB color) {
   if (ledNum != INACTIVE_SLOT) {
@@ -177,19 +189,6 @@ void ringWaveBeamLoop() {
   }
 }
 
-void introBeamLoop() {
-  static uint8_t rowNumber = BEAM_COL_LEN;
-
-  EVERY_N_MILLISECONDS_I(thisTimer, durationA) {
-    setBeamRow(rowNumber, beamColor);
-    if (rowNumber <= 0) {
-      beamIntroTriggered = true;
-    }
-    FastLED.show();
-    rowNumber--;
-  }
-}
-
 void introSuitLoop() {
   uint32_t timeDelta = millis() - startTime;
 
@@ -217,7 +216,7 @@ void introSuitLoop() {
   // if (timeDelta > startSuitDelay + 781) {
   //   fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorFull);
   // }
-  
+
   // if (timeDelta > startSuitDelay + 448) {
   //   fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS,
   //              suitColorHalf);
@@ -234,8 +233,7 @@ void introSuitLoop() {
   // }
 
   if (timeDelta > startSuitDelay + 835) {
-    fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS,
-               badOrange);
+    fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS, badOrange);
   }
 }
 
