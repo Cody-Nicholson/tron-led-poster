@@ -45,16 +45,27 @@ unsigned long startTime;
 boolean beamIntroTriggered = 0;
 boolean suitIntro = 0;
 
-const CHSV ringColor = CHSV(HUE_BLUE, 200, 120);
-const CHSV ringInnerColor = CHSV(HUE_BLUE, 200, 90);
-const CHSV ringOuterColor = CHSV(HUE_BLUE, 200, 75);
-const CHSV beamColor = CHSV(HUE_BLUE, 225, 60);
+const CHSV ringColor = CHSV(HUE_BLUE, 150, 165);
+const CHSV ringInnerColor = CHSV(HUE_BLUE, 180, 145);
+const CHSV ringOuterColor = CHSV(HUE_BLUE, 185, 135);
+const CHSV beamColor = CHSV(HUE_BLUE, 190, 125);
+
+// const CHSV ringColor = CHSV(HUE_BLUE, 200, 140);
+// const CHSV ringInnerColor = CHSV(HUE_BLUE, 200, 100);
+// const CHSV ringOuterColor = CHSV(HUE_BLUE, 200, 85);
+// const CHSV beamColor = CHSV(HUE_BLUE, 225, 60);
+
+
+const CHSV letterBgColor = CHSV(HUE_BLUE, 225, 60);
 const CHSV leadLetterColor = CHSV(HUE_BLUE, 20, 100);
 
 const CHSV suitColorFull = CHSV(HUE_BLUE, 100, 90);
-const CHSV suitColorHalf = CHSV(HUE_ORANGE, 100, 40);
+const CHSV suitColorHalf = CHSV(HUE_RED, 255, 60);
 
 const CHSV lineColor = CHSV(HUE_BLUE, 100, 70);
+
+const CHSV badOrange = CHSV(21, 241, 150);
+const CHSV otherbadOrange = CHSV(25, 216, 150);
 
 class Point {
  public:
@@ -180,43 +191,51 @@ void introBeamLoop() {
 }
 
 void introSuitLoop() {
-  uint16_t timeDelta = millis() - startTime;
+  uint32_t timeDelta = millis() - startTime;
+
+  if (timeDelta > startSuitDelay) {
+    fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, otherbadOrange);
+  }
+
+  // if (timeDelta > startSuitDelay + 20448) {
+  //   fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorFull);
+  // }
 
   /* LEFT SUIT  */
-  if (timeDelta > startSuitDelay + 383) {
-    fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorHalf);
-  }
+  // if (timeDelta > startSuitDelay + 383) {
+  //   fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorHalf);
+  // }
 
-  if (timeDelta > startSuitDelay + 448) {
-    fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorFull);
-  }
+  // if (timeDelta > startSuitDelay + 448) {
+  //   fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorFull);
+  // }
 
-  if (timeDelta > startSuitDelay + 532) {
-    fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorHalf);
-  }
+  // if (timeDelta > startSuitDelay + 532) {
+  //   fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorHalf);
+  // }
 
-  if (timeDelta > startSuitDelay + 781) {
-    fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorFull);
-  }
+  // if (timeDelta > startSuitDelay + 781) {
+  //   fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorFull);
+  // }
   
-  if (timeDelta > startSuitDelay + 448) {
-    fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS,
-               suitColorHalf);
-  }
+  // if (timeDelta > startSuitDelay + 448) {
+  //   fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS,
+  //              suitColorHalf);
+  // }
 
-  if (timeDelta > startSuitDelay + 532) {
-    fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS,
-               suitColorFull);
-  }
+  // if (timeDelta > startSuitDelay + 532) {
+  //   fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS,
+  //              suitColorFull);
+  // }
 
-  if (timeDelta > startSuitDelay + 781) {
-    fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS,
-               suitColorHalf);
-  }
+  // if (timeDelta > startSuitDelay + 781) {
+  //   fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS,
+  //              suitColorHalf);
+  // }
 
   if (timeDelta > startSuitDelay + 835) {
     fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS,
-               suitColorFull);
+               badOrange);
   }
 }
 
@@ -276,13 +295,13 @@ void loopLetters() {
 
   EVERY_N_MILLISECONDS(60) {
     if (pos > 0) {
-      setLetterLed(pointList[pos - 1], beamColor);
+      setLetterLed(pointList[pos - 1], letterBgColor);
     }
     setLetterLed(pointList[pos], leadLetterColor);
     pos++;
     if (pos > NUM_TRON_LETTER_LEDS - 1) {
       pos = 0;
-      setLetterLed(pointList[NUM_TRON_LETTER_LEDS - 1], beamColor);
+      setLetterLed(pointList[NUM_TRON_LETTER_LEDS - 1], letterBgColor);
     }
     FastLED.show();
   }
@@ -343,7 +362,7 @@ void setupLetters() {
 
 void lineOn() {
   for (int i = 0; i < NUM_LINE_LEDS; i++) {
-    lineLeds[i] = beamColor;
+    lineLeds[i] = lineColor;
   }
 }
 
