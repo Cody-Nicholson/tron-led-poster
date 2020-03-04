@@ -9,7 +9,7 @@
 
 ESP8266WiFiMulti wifiMulti;
 
-#define NUM_BEAM_LEDS 64
+#define NUM_BEAM_LEDS 63
 #define BEAM_COL_LEN 23
 
 #define NUM_LETTER_LEDS 107
@@ -57,6 +57,7 @@ const CHSV beamColor = CHSV(HUE_BLUE, 190, 125);
 
 const CHSV letterBgColor = CHSV(HUE_BLUE, 225, 60);
 const CHSV leadLetterColor = CHSV(HUE_BLUE, 20, 100);
+const CHSV legacyLetterColor = CHSV(HUE_BLUE, 20, 100);
 
 const CHSV suitColorFull = CHSV(HUE_BLUE, 100, 90);
 const CHSV suitColorHalf = CHSV(HUE_RED, 255, 60);
@@ -83,6 +84,7 @@ class Point {
 Point *pointList;
 
 void setLetterLed(Point point, CRGB color) {
+  Serial.println(lettersToStrip[point.y][point.x]);
   letterLeds[lettersToStrip[point.y][point.x]] = color;
 }
 
@@ -96,8 +98,8 @@ void fill_solid(struct CRGB *targetArray, int startFill, int numToFill,
 void initBeam() {
   for (uint8_t i = 0; i < BEAM_COL_LEN; i++) {
     beamToStrip[i][0] = i;
-    beamToStrip[BEAM_COL_LEN - 1 - i][1] = i + BEAM_COL_LEN;
-    beamToStrip[i][2] = i + 46 - 5;
+    beamToStrip[BEAM_COL_LEN - 1 - i][1] = i + BEAM_COL_LEN - 1;
+    beamToStrip[i][2] = i + 46 - 6;
 
     beamToStrip[0][1] = INACTIVE_SLOT;
     beamToStrip[1][1] = INACTIVE_SLOT;
@@ -105,23 +107,12 @@ void initBeam() {
     beamToStrip[0][2] = INACTIVE_SLOT;
     beamToStrip[1][2] = INACTIVE_SLOT;
     beamToStrip[2][2] = INACTIVE_SLOT;
+
+    beamToStrip[22][1] = INACTIVE_SLOT;
   }
 }
 
 boolean isInBeamRange(uint8_t x) { return x >= 0 && x < BEAM_COL_LEN; }
-
-void introBeamLoop() {
-  static uint8_t rowNumber = BEAM_COL_LEN - 1;
-
-  EVERY_N_MILLISECONDS_I(thisTimer, durationA) {
-    setBeamRow(rowNumber, beamColor);
-    if (rowNumber <= 0) {
-      beamIntroTriggered = true;
-    }
-    FastLED.show();
-    rowNumber--;
-  }
-}
 
 void setBeamLed(uint8_t ledNum, CRGB color) {
   if (ledNum != INACTIVE_SLOT) {
@@ -142,30 +133,18 @@ void setBeamRow(uint8_t rowNum, CRGB color) {
   setBeamLed(beamToStrip[rowNum][2], color);
 }
 
-void ringWaveBeamLoopOuter() {
-  static int8_t wavePos = 22;
-  EVERY_N_MILLISECONDS_I(thisTimer, ringWaveSpeed) {
-    /* Replace Normal beam color  */
-    setBeamLed(wavePos - 3, 0, beamColor);
-    setBeamLed(wavePos - 3, 2, beamColor);
-    setBeamLed(wavePos - 2, 0, ringOuterColor);
-    setBeamLed(wavePos - 2, 2, ringOuterColor);
-    setBeamLed(wavePos - 1, 0, ringInnerColor);
-    setBeamLed(wavePos - 1, 2, ringInnerColor);
-    setBeamLed(wavePos, 0, ringColor);
-    setBeamLed(wavePos, 2, ringColor);
-    setBeamLed(wavePos + 1, 0, ringInnerColor);
-    setBeamLed(wavePos + 1, 2, ringInnerColor);
-    setBeamLed(wavePos + 2, 0, ringOuterColor);
-    setBeamLed(wavePos + 2, 2, ringOuterColor);
-    setBeamLed(wavePos + 3, 0, beamColor);
-    setBeamLed(wavePos + 3, 2, beamColor);
+void introBeamLoop() {
+  static uint8_t rowNumber = BEAM_COL_LEN - 1;
 
-    FastLED.show();
-    wavePos++;
-    if (wavePos >= BEAM_COL_LEN + 5) {
-      wavePos = 0;
+  EVERY_N_MILLISECONDS_I(thisTimer, durationA) {
+    setBeamRow(rowNumber, beamColor);
+    if (rowNumber <= 0) {
+      beamIntroTriggered = true;
+      FastLED.show();
+      return;
     }
+    FastLED.show();
+    rowNumber--;
   }
 }
 
@@ -193,7 +172,7 @@ void introSuitLoop() {
   uint32_t timeDelta = millis() - startTime;
 
   if (timeDelta > startSuitDelay) {
-    fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, otherbadOrange);
+    fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorFull);
   }
 
   // if (timeDelta > startSuitDelay + 20448) {
@@ -233,7 +212,8 @@ void introSuitLoop() {
   // }
 
   if (timeDelta > startSuitDelay + 835) {
-    fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS, badOrange);
+    fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS,
+               suitColorFull);
   }
 }
 
@@ -275,6 +255,16 @@ void initLetterCoords() {
   }
 }
 
+void debugLetterPattern() {
+  Serial.println();
+  for (uint8_t i = 0; i < NUM_TRON_LETTER_LEDS; i++) {
+    Serial.print(pointList[i].x);
+    Serial.print(',');
+    Serial.print(pointList[i].y);
+    Serial.println();
+  }
+}
+
 Point *getTronLetterPattern() {
   uint8_t pos = 0;
   Point *points = new Point[NUM_TRON_LETTER_LEDS];
@@ -292,9 +282,12 @@ void loopLetters() {
   static uint8_t pos = 0;
 
   EVERY_N_MILLISECONDS(60) {
+    /* Trail with bg color  */
     if (pos > 0) {
       setLetterLed(pointList[pos - 1], letterBgColor);
     }
+
+    /* Set Lead color  */
     setLetterLed(pointList[pos], leadLetterColor);
     pos++;
     if (pos > NUM_TRON_LETTER_LEDS - 1) {
@@ -305,7 +298,14 @@ void loopLetters() {
   }
 }
 
+void introLegacyLetters() {
+  for (uint8_t i = NUM_TRON_LETTER_LEDS; i < NUM_LETTER_LEDS; i++) {
+    letterLeds[i] = legacyLetterColor;
+  }
+}
+
 void setupOTA() {
+  Serial.println("STARTING OTA");
   Serial.begin(115200);
   delay(10);
   wifiMulti.addAP(ROUTER_SSID, ROUTER_PASS);
@@ -326,7 +326,10 @@ void setupOTA() {
   ArduinoOTA.setPort(8266);
 
   ArduinoOTA.onStart([]() { Serial.println("Start"); });
-  ArduinoOTA.onEnd([]() { Serial.println("\nEnd"); });
+  ArduinoOTA.onEnd([]() { 
+    Serial.println("\nEnd");
+    ESP.restart();
+     });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
   });
@@ -356,11 +359,23 @@ void breathLoop() {
 void setupLetters() {
   initLetterCoords();
   pointList = getTronLetterPattern();
+  // debugLetterPattern();
 }
 
 void lineOn() {
   for (int i = 0; i < NUM_LINE_LEDS; i++) {
     lineLeds[i] = lineColor;
+  }
+}
+
+void debugBeamIntro() {
+  Serial.println();
+  for (uint8_t i = 0; i < BEAM_COL_LEN; i++) {
+    for (uint8_t j = 0; j < 3; j++) {
+      Serial.print(beamToStrip[22 - i][2 - j]);
+      Serial.print(',');
+    }
+    Serial.println();
   }
 }
 
@@ -371,24 +386,28 @@ void setup() {
   FastLED.addLeds<NEOPIXEL, SUIT_DATA_PIN>(suitLeds, NUM_SUIT_LEDS);
   FastLED.addLeds<NEOPIXEL, LETTERS_DATA_PIN>(letterLeds, NUM_LETTER_LEDS);
   FastLED.addLeds<NEOPIXEL, LINE_DATA_PIN>(lineLeds, NUM_LINE_LEDS);
+  startTime = millis();
   initBeam();
+  debugBeamIntro();
   setupLetters();
   lineOn();
-  startTime = millis();
+  introLegacyLetters();
 }
 
 void mainBeamLoop() {
   if (!beamIntroTriggered) {
+    FastLED.show();
     introBeamLoop();
   } else {
-    ringWaveBeamLoop();
+    //ringWaveBeamLoop();
   }
 }
 
 void loop() {
   ArduinoOTA.handle();
-  mainBeamLoop();
+
+ //mainBeamLoop();
   loopLetters();
-  introSuitLoop();
+   introSuitLoop();
   breathLoop();
 }
