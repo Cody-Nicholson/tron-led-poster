@@ -84,7 +84,7 @@ class Point {
 Point *pointList;
 
 void setLetterLed(Point point, CRGB color) {
-  Serial.println(lettersToStrip[point.y][point.x]);
+  //Serial.println(lettersToStrip[point.y][point.x]);
   letterLeds[lettersToStrip[point.y][point.x]] = color;
 }
 
@@ -127,10 +127,12 @@ void setBeamLed(uint8_t x, uint8_t y, CHSV color) {
   }
 }
 
-void setBeamRow(uint8_t rowNum, CRGB color) {
-  setBeamLed(beamToStrip[rowNum][0], color);
-  setBeamLed(beamToStrip[rowNum][1], color);
-  setBeamLed(beamToStrip[rowNum][2], color);
+void setBeamRow(int8_t rowNum, CRGB color) {
+  if (rowNum > 0 && rowNum < BEAM_COL_LEN) {
+    setBeamLed(beamToStrip[rowNum][0], color);
+    setBeamLed(beamToStrip[rowNum][1], color);
+    setBeamLed(beamToStrip[rowNum][2], color);
+  }
 }
 
 void introBeamLoop() {
@@ -305,7 +307,6 @@ void introLegacyLetters() {
 }
 
 void setupOTA() {
-  Serial.println("STARTING OTA");
   Serial.begin(115200);
   delay(10);
   wifiMulti.addAP(ROUTER_SSID, ROUTER_PASS);
@@ -326,10 +327,10 @@ void setupOTA() {
   ArduinoOTA.setPort(8266);
 
   ArduinoOTA.onStart([]() { Serial.println("Start"); });
-  ArduinoOTA.onEnd([]() { 
+  ArduinoOTA.onEnd([]() {
     Serial.println("\nEnd");
     ESP.restart();
-     });
+  });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
   });
@@ -399,15 +400,15 @@ void mainBeamLoop() {
     FastLED.show();
     introBeamLoop();
   } else {
-    //ringWaveBeamLoop();
+    ringWaveBeamLoop();
   }
 }
 
 void loop() {
   ArduinoOTA.handle();
 
- //mainBeamLoop();
+  mainBeamLoop();
   loopLetters();
-   introSuitLoop();
+  introSuitLoop();
   breathLoop();
 }
