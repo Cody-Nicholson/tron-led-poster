@@ -41,6 +41,7 @@ uint16_t durationA = 40;  // How often to run Event A [milliseconds]
 uint16_t startSuitDelay = 2000;
 uint8_t ringWaveSpeed = 50;
 unsigned long startTime;
+unsigned long lastTime;
 
 boolean beamIntroTriggered = 0;
 boolean suitIntro = 0;
@@ -84,7 +85,7 @@ class Point {
 Point *pointList;
 
 void setLetterLed(Point point, CRGB color) {
-  //Serial.println(lettersToStrip[point.y][point.x]);
+  // Serial.println(lettersToStrip[point.y][point.x]);
   letterLeds[lettersToStrip[point.y][point.x]] = color;
 }
 
@@ -94,6 +95,7 @@ void fill_solid(struct CRGB *targetArray, int startFill, int numToFill,
     targetArray[i] = hsvColor;
   }
 }
+
 /* Map matrix to strip position  */
 void initBeam() {
   for (uint8_t i = 0; i < BEAM_COL_LEN; i++) {
@@ -148,6 +150,33 @@ void introBeamLoop() {
     FastLED.show();
     rowNumber--;
   }
+}
+
+/* Cubic eased Wave */
+void beamWave() {
+  static uint8_t easeOutVal = 0;
+  static uint8_t lerpVal = 0;
+  static int8_t wavePos = 0;
+
+  EVERY_N_MILLISECONDS_I(thisTimer, 20) {
+
+    easeOutVal = ease8InOutCubic(wavePos);
+    lerpVal = lerp8by8(0, BEAM_COL_LEN + 6, easeOutVal) - 3;
+
+    /* Replace Normal beam color  */
+    setBeamRow(lerpVal - 3, beamColor);
+    setBeamRow(lerpVal - 2, ringOuterColor);
+    setBeamRow(lerpVal - 1, ringInnerColor);
+    setBeamRow(lerpVal, ringColor);
+    setBeamRow(lerpVal + 1, ringInnerColor);
+    setBeamRow(lerpVal + 2, ringOuterColor);
+    setBeamRow(lerpVal + 3, beamColor);
+
+    FastLED.show();
+    wavePos += 3;
+    wavePos %= 254;
+  }
+  
 }
 
 void ringWaveBeamLoop() {
@@ -400,7 +429,8 @@ void mainBeamLoop() {
     FastLED.show();
     introBeamLoop();
   } else {
-    ringWaveBeamLoop();
+    //ringWaveBeamLoop();
+    beamWave();
   }
 }
 
