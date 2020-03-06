@@ -1,6 +1,7 @@
 #define FASTLED_ESP8266_NODEMCU_PIN_ORDER
 
 #include <ArduinoOTA.h>
+#include <ESP8266WebServer.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
 #include <FastLED.h>
@@ -8,6 +9,7 @@
 #include <string>
 
 ESP8266WiFiMulti wifiMulti;
+ESP8266WebServer server(80);
 
 #define NUM_BEAM_LEDS 63
 #define BEAM_COL_LEN 23
@@ -159,7 +161,6 @@ void beamWave() {
   static int8_t wavePos = 0;
 
   EVERY_N_MILLISECONDS_I(thisTimer, 20) {
-
     easeOutVal = ease8InOutCubic(wavePos);
     lerpVal = lerp8by8(0, BEAM_COL_LEN + 6, easeOutVal) - 3;
 
@@ -174,9 +175,7 @@ void beamWave() {
 
     FastLED.show();
     wavePos += 3;
-    wavePos %= 254;
   }
-  
 }
 
 void ringWaveBeamLoop() {
@@ -197,6 +196,11 @@ void ringWaveBeamLoop() {
       wavePos = 0;
     }
   }
+}
+
+void lightSuit() {
+  fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorFull);
+  fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS, suitColorFull);
 }
 
 void introSuitLoop() {
@@ -329,15 +333,13 @@ void loopLetters() {
   }
 }
 
-void introLegacyLetters() {
+void lightLegacyLetters() {
   for (uint8_t i = NUM_TRON_LETTER_LEDS; i < NUM_LETTER_LEDS; i++) {
     letterLeds[i] = legacyLetterColor;
   }
 }
 
-void setupOTA() {
-  Serial.begin(115200);
-  delay(10);
+void initWifi() {
   wifiMulti.addAP(ROUTER_SSID, ROUTER_PASS);
 
   Serial.println("\nConnecting ...");
@@ -350,7 +352,9 @@ void setupOTA() {
   Serial.print("IP address:\t");
   Serial.println(
       WiFi.localIP());  // Send the IP address of the ESP8266 to the computer
+}
 
+void initOTA() {
   ArduinoOTA.setHostname("ESP8266");
   ArduinoOTA.setPassword("esp8266");
   ArduinoOTA.setPort(8266);
@@ -386,13 +390,13 @@ void breathLoop() {
   suitLeds[RECOGNIZER_INDEX] = CHSV(HUE_BLUE, 255, breath);
 }
 
-void setupLetters() {
+void initLetters() {
   initLetterCoords();
   pointList = getTronLetterPattern();
   // debugLetterPattern();
 }
 
-void lineOn() {
+void lightSolarSailer() {
   for (int i = 0; i < NUM_LINE_LEDS; i++) {
     lineLeds[i] = lineColor;
   }
@@ -409,19 +413,50 @@ void debugBeamIntro() {
   }
 }
 
+void handleRoot() {                         // When URI / is requested, send a web page with a button to toggle the LED
+  server.send(200, "text/html", "<form action=\"/LED\" method=\"POST\"><input type=\"submit\" value=\"Toggle LED\"></form>");
+}
+
+void handleLED() {                          // If a POST request is made to URI /LED
+  turnOff();
+  server.send(200);                         // Send it back to the browser with an HTTP status 303 (See Other) to redirect
+}
+
+void handleNotFound(){
+  server.send(404, "text/plain", "404: Not found"); // Send HTTP status 404 (Not Found) when there's no handler for the URI in the request
+}
+
+void initServer(){
+  server.on("/", HTTP_GET, handleRoot);     // Call the 'handleRoot' function when a client requests URI "/"
+  server.on("/LED", HTTP_POST, handleLED);  // Call the 'handleLED' function when a POST request is made to URI "/LED"
+  server.onNotFound(handleNotFound);        // When a client requests an unknown URI (i.e. something other than "/"), call function "handleNotFound"
+
+  server.begin();                           // Actually start the server
+  Serial.println("HTTP server started");
+}
+
 void setup() {
-  setupOTA();
+  Serial.begin(115200);
+  delay(10);
+  initWifi();
+  initOTA();
+  //initServer();
+
   FastLED.setMaxPowerInVoltsAndMilliamps(5, 8000);
   FastLED.addLeds<NEOPIXEL, BEAM_DATA_PIN>(beamLeds, NUM_BEAM_LEDS);
   FastLED.addLeds<NEOPIXEL, SUIT_DATA_PIN>(suitLeds, NUM_SUIT_LEDS);
   FastLED.addLeds<NEOPIXEL, LETTERS_DATA_PIN>(letterLeds, NUM_LETTER_LEDS);
   FastLED.addLeds<NEOPIXEL, LINE_DATA_PIN>(lineLeds, NUM_LINE_LEDS);
+
   startTime = millis();
+
   initBeam();
-  debugBeamIntro();
-  setupLetters();
-  lineOn();
-  introLegacyLetters();
+  initLetters();
+
+  lightSolarSailer();
+  lightLegacyLetters();
+  lightSuit();
+  // debugBeamIntro();
 }
 
 void mainBeamLoop() {
@@ -429,16 +464,44 @@ void mainBeamLoop() {
     FastLED.show();
     introBeamLoop();
   } else {
-    //ringWaveBeamLoop();
+    // ringWaveBeamLoop();
     beamWave();
   }
+}
+
+boolean isOff = false;
+boolean wasOff = false;
+boolean wasOn = false;
+
+void turnOff() {
+  isOff = true;
+  FastLED.showColor(CRGB(0, 0, 0), 0);
+}
+
+void turnOn() {
+  isOff = false;
+  lightSolarSailer();
+  lightLegacyLetters();
+  lightSuit();
 }
 
 void loop() {
   ArduinoOTA.handle();
 
-  mainBeamLoop();
-  loopLetters();
-  introSuitLoop();
-  breathLoop();
+  // if (millis() - startTime > 10000 && !wasOff) {
+  //   wasOff = true;
+  //   turnOff();
+  // }
+
+  // if (millis() - startTime > 20000 && !wasOn) {
+  //   wasOn = true;
+  //   turnOn();
+  // }
+
+  if (!isOff) {
+    mainBeamLoop();
+    loopLetters();
+    // introSuitLoop();
+    breathLoop();
+  }
 }
