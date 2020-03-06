@@ -7,9 +7,12 @@
 #include <FastLED.h>
 #include <creds.h>
 #include <string>
+//#include <ESPAsyncTCP.h>
+//#include <ESPAsyncWebServer.h>
 
 ESP8266WiFiMulti wifiMulti;
 ESP8266WebServer server(80);
+ESP8266WebServer api(3003);
 
 #define NUM_BEAM_LEDS 63
 #define BEAM_COL_LEN 23
@@ -413,6 +416,16 @@ void debugBeamIntro() {
   }
 }
 
+boolean isOff = false;
+boolean wasOff = false;
+boolean wasOn = false;
+
+void turnOff() {
+  Serial.println("Shut that thing down");
+  isOff = true;
+  FastLED.showColor(CRGB(0, 0, 0), 0);
+}
+
 void handleRoot() {                         // When URI / is requested, send a web page with a button to toggle the LED
   server.send(200, "text/html", "<form action=\"/LED\" method=\"POST\"><input type=\"submit\" value=\"Toggle LED\"></form>");
 }
@@ -423,15 +436,35 @@ void handleLED() {                          // If a POST request is made to URI 
 }
 
 void handleNotFound(){
-  server.send(404, "text/plain", "404: Not found"); // Send HTTP status 404 (Not Found) when there's no handler for the URI in the request
+  server.send(404, "text/plain", "404: Not found");
+}
+
+void handlePowerStatus(){
+  server.send(200, "text/html", isOff ? "off": "on");
+}
+
+void handleAPIRoot() {     
+  api.sendHeader("Access-Control-Allow-Origin", "*");                    // When URI / is requested, send a web page with a button to toggle the LED
+  api.send(200, "text/html", "API ACTION");
 }
 
 void initServer(){
+  // if (MDNS.begin("esp")) {              // Start the mDNS responder for esp8266.local
+  //   Serial.println("mDNS responder started");
+  // } else {
+  //   Serial.println("Error setting up MDNS responder!");
+  // }
+
   server.on("/", HTTP_GET, handleRoot);     // Call the 'handleRoot' function when a client requests URI "/"
+  server.on("/power", HTTP_GET, handlePowerStatus);
   server.on("/LED", HTTP_POST, handleLED);  // Call the 'handleLED' function when a POST request is made to URI "/LED"
   server.onNotFound(handleNotFound);        // When a client requests an unknown URI (i.e. something other than "/"), call function "handleNotFound"
 
   server.begin();                           // Actually start the server
+
+  api.on("/", HTTP_GET, handleAPIRoot);
+  api.begin();
+
   Serial.println("HTTP server started");
 }
 
@@ -440,7 +473,7 @@ void setup() {
   delay(10);
   initWifi();
   initOTA();
-  //initServer();
+  initServer();
 
   FastLED.setMaxPowerInVoltsAndMilliamps(5, 8000);
   FastLED.addLeds<NEOPIXEL, BEAM_DATA_PIN>(beamLeds, NUM_BEAM_LEDS);
@@ -469,15 +502,6 @@ void mainBeamLoop() {
   }
 }
 
-boolean isOff = false;
-boolean wasOff = false;
-boolean wasOn = false;
-
-void turnOff() {
-  isOff = true;
-  FastLED.showColor(CRGB(0, 0, 0), 0);
-}
-
 void turnOn() {
   isOff = false;
   lightSolarSailer();
@@ -486,6 +510,8 @@ void turnOn() {
 }
 
 void loop() {
+  server.handleClient();
+  api.handleClient();   
   ArduinoOTA.handle();
 
   // if (millis() - startTime > 10000 && !wasOff) {
