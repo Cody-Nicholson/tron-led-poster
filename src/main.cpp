@@ -5,10 +5,11 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
 #include <FastLED.h>
-#include <creds.h>
 #include <string>
-//#include <ESPAsyncTCP.h>
-//#include <ESPAsyncWebServer.h>
+/* Project H Files */
+#include <creds.h>
+#include <Point.h>
+#include <ota.h>
 
 ESP8266WiFiMulti wifiMulti;
 ESP8266WebServer server(80);
@@ -66,26 +67,14 @@ const CHSV leadLetterColor = CHSV(HUE_BLUE, 20, 100);
 const CHSV legacyLetterColor = CHSV(HUE_BLUE, 20, 100);
 
 const CHSV suitColorFull = CHSV(HUE_BLUE, 100, 90);
-const CHSV suitColorHalf = CHSV(HUE_RED, 255, 60);
+const CHSV suitColorHalf = CHSV(HUE_BLUE, 255, 60);
 
 const CHSV lineColor = CHSV(HUE_BLUE, 100, 70);
 
 const CHSV badOrange = CHSV(21, 241, 150);
 const CHSV otherbadOrange = CHSV(25, 216, 150);
 
-class Point {
- public:
-  uint8_t x, y;
-  Point() {
-    x = 0;
-    y = 0;
-  }
-
-  Point(uint8_t a, uint8_t b) {
-    x = a;
-    y = b;
-  }
-};
+void turnOn();
 
 Point *pointList;
 
@@ -206,55 +195,6 @@ void lightSuit() {
   fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS, suitColorFull);
 }
 
-void introSuitLoop() {
-  uint32_t timeDelta = millis() - startTime;
-
-  if (timeDelta > startSuitDelay) {
-    fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorFull);
-  }
-
-  // if (timeDelta > startSuitDelay + 20448) {
-  //   fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorFull);
-  // }
-
-  /* LEFT SUIT  */
-  // if (timeDelta > startSuitDelay + 383) {
-  //   fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorHalf);
-  // }
-
-  // if (timeDelta > startSuitDelay + 448) {
-  //   fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorFull);
-  // }
-
-  // if (timeDelta > startSuitDelay + 532) {
-  //   fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorHalf);
-  // }
-
-  // if (timeDelta > startSuitDelay + 781) {
-  //   fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorFull);
-  // }
-
-  // if (timeDelta > startSuitDelay + 448) {
-  //   fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS,
-  //              suitColorHalf);
-  // }
-
-  // if (timeDelta > startSuitDelay + 532) {
-  //   fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS,
-  //              suitColorFull);
-  // }
-
-  // if (timeDelta > startSuitDelay + 781) {
-  //   fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS,
-  //              suitColorHalf);
-  // }
-
-  if (timeDelta > startSuitDelay + 835) {
-    fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS,
-               suitColorFull);
-  }
-}
-
 void addMoveTo(Point start, Point end, uint8_t &pos,
                Point points[NUM_TRON_LETTER_LEDS]) {
   if (start.x != end.x) {
@@ -357,35 +297,35 @@ void initWifi() {
       WiFi.localIP());  // Send the IP address of the ESP8266 to the computer
 }
 
-void initOTA() {
-  ArduinoOTA.setHostname("ESP8266");
-  ArduinoOTA.setPassword("esp8266");
-  ArduinoOTA.setPort(8266);
+// void initOTA() {
+//   ArduinoOTA.setHostname("ESP8266");
+//   ArduinoOTA.setPassword("esp8266");
+//   ArduinoOTA.setPort(8266);
 
-  ArduinoOTA.onStart([]() { Serial.println("Start"); });
-  ArduinoOTA.onEnd([]() {
-    Serial.println("\nEnd");
-    ESP.restart();
-  });
-  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-  });
-  ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf("Error[%u]: ", error);
-    if (error == OTA_AUTH_ERROR)
-      Serial.println("Auth Failed");
-    else if (error == OTA_BEGIN_ERROR)
-      Serial.println("Begin Failed");
-    else if (error == OTA_CONNECT_ERROR)
-      Serial.println("Connect Failed");
-    else if (error == OTA_RECEIVE_ERROR)
-      Serial.println("Receive Failed");
-    else if (error == OTA_END_ERROR)
-      Serial.println("End Failed");
-  });
-  ArduinoOTA.begin();
-  Serial.println("OTA ready");
-}
+//   ArduinoOTA.onStart([]() { Serial.println("Start"); });
+//   ArduinoOTA.onEnd([]() {
+//     Serial.println("\nEnd");
+//     ESP.restart();
+//   });
+//   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+//     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+//   });
+//   ArduinoOTA.onError([](ota_error_t error) {
+//     Serial.printf("Error[%u]: ", error);
+//     if (error == OTA_AUTH_ERROR)
+//       Serial.println("Auth Failed");
+//     else if (error == OTA_BEGIN_ERROR)
+//       Serial.println("Begin Failed");
+//     else if (error == OTA_CONNECT_ERROR)
+//       Serial.println("Connect Failed");
+//     else if (error == OTA_RECEIVE_ERROR)
+//       Serial.println("Receive Failed");
+//     else if (error == OTA_END_ERROR)
+//       Serial.println("End Failed");
+//   });
+//   ArduinoOTA.begin();
+//   Serial.println("OTA ready");
+// }
 
 void breathLoop() {
   float breath = (exp(sin(millis() / 2000.0 * PI)) - 0.36787944) * 108.0;
@@ -426,43 +366,65 @@ void turnOff() {
   FastLED.showColor(CRGB(0, 0, 0), 0);
 }
 
-void handleRoot() {                         // When URI / is requested, send a web page with a button to toggle the LED
-  server.send(200, "text/html", "<form action=\"/LED\" method=\"POST\"><input type=\"submit\" value=\"Toggle LED\"></form>");
+void handleRoot() {  // When URI / is requested, send a web page with a button
+                     // to toggle the LED
+  server.send(200, "text/html",
+              "<form action=\"/LED\" method=\"POST\"><input type=\"submit\" "
+              "value=\"Toggle LED\"></form>");
 }
 
-void handleLED() {                          // If a POST request is made to URI /LED
+void handleLED() {  // If a POST request is made to URI /LED
   turnOff();
-  server.send(200);                         // Send it back to the browser with an HTTP status 303 (See Other) to redirect
+  server.send(200);  // Send it back to the browser with an HTTP status 303 (See
+                     // Other) to redirect
 }
 
-void handleNotFound(){
-  server.send(404, "text/plain", "404: Not found");
+void handleNotFound() { server.send(404, "text/plain", "404: Not found"); }
+
+void handlePowerStatus() {
+  api.sendHeader("Access-Control-Allow-Origin", "*");
+  api.send(200, "text/html", isOff ? "off" : "on");
 }
 
-void handlePowerStatus(){
-  server.send(200, "text/html", isOff ? "off": "on");
+void handlePowerUpdate() {
+  if (api.arg("plain") == "on") {
+    turnOn();
+  } else {
+    turnOff();
+  }
+  api.sendHeader("Access-Control-Allow-Origin", "*");
+  api.send(200);
 }
 
-void handleAPIRoot() {     
-  api.sendHeader("Access-Control-Allow-Origin", "*");                    // When URI / is requested, send a web page with a button to toggle the LED
+void handleAPIRoot() {
+  api.sendHeader("Access-Control-Allow-Origin",
+                 "*");  // When URI / is requested, send a web page with a
+                        // button to toggle the LED
   api.send(200, "text/html", "API ACTION");
 }
 
-void initServer(){
-  // if (MDNS.begin("esp")) {              // Start the mDNS responder for esp8266.local
+void initServer() {
+  // if (MDNS.begin("esp")) {              // Start the mDNS responder for
+  // esp8266.local
   //   Serial.println("mDNS responder started");
   // } else {
   //   Serial.println("Error setting up MDNS responder!");
   // }
 
-  server.on("/", HTTP_GET, handleRoot);     // Call the 'handleRoot' function when a client requests URI "/"
-  server.on("/power", HTTP_GET, handlePowerStatus);
-  server.on("/LED", HTTP_POST, handleLED);  // Call the 'handleLED' function when a POST request is made to URI "/LED"
-  server.onNotFound(handleNotFound);        // When a client requests an unknown URI (i.e. something other than "/"), call function "handleNotFound"
+  server.on("/", HTTP_GET, handleRoot);  // Call the 'handleRoot' function when
+                                         // a client requests URI "/"
+  server.on("/LED", HTTP_POST,
+            handleLED);  // Call the 'handleLED' function when a POST request is
+                         // made to URI "/LED"
+  server.onNotFound(
+      handleNotFound);  // When a client requests an unknown URI (i.e. something
+                        // other than "/"), call function "handleNotFound"
 
-  server.begin();                           // Actually start the server
+  server.begin();  // Actually start the server
 
   api.on("/", HTTP_GET, handleAPIRoot);
+  api.on("/power", HTTP_GET, handlePowerStatus);
+  api.on("/power", HTTP_POST, handlePowerUpdate);
   api.begin();
 
   Serial.println("HTTP server started");
@@ -511,7 +473,7 @@ void turnOn() {
 
 void loop() {
   server.handleClient();
-  api.handleClient();   
+  api.handleClient();
   ArduinoOTA.handle();
 
   // if (millis() - startTime > 10000 && !wasOff) {
