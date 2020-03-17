@@ -45,8 +45,7 @@ const uint8_t INACTIVE_SLOT = 255;
 uint8_t beamToStrip[BEAM_COL_LEN][3];
 uint8_t lettersToStrip[4][LETTER_ROW_LEN];
 
-uint16_t durationA = 40;  // How often to run Event A [milliseconds]
-uint16_t startSuitDelay = 2000;
+uint16_t beamLoopSpeed = 40;  // How often to run Event A [milliseconds]
 uint8_t ringWaveSpeed = 50;
 unsigned long startTime;
 unsigned long lastTime;
@@ -110,7 +109,7 @@ void initBeam() {
   }
 }
 
-boolean isInBeamRange(uint8_t x) { return x >= 0 && x < BEAM_COL_LEN; }
+boolean isInBeamRange(uint8_t rowNum) { return rowNum >= 0 && rowNum < BEAM_COL_LEN; }
 
 void setBeamLed(uint8_t ledNum, CRGB color) {
   if (ledNum != INACTIVE_SLOT) {
@@ -126,7 +125,7 @@ void setBeamLed(uint8_t x, uint8_t y, CHSV color) {
 }
 
 void setBeamRow(int8_t rowNum, CRGB color) {
-  if (rowNum > 0 && rowNum < BEAM_COL_LEN) {
+  if (rowNum >= 0 && rowNum < BEAM_COL_LEN) {
     setBeamLed(beamToStrip[rowNum][0], color);
     setBeamLed(beamToStrip[rowNum][1], color);
     setBeamLed(beamToStrip[rowNum][2], color);
@@ -136,7 +135,7 @@ void setBeamRow(int8_t rowNum, CRGB color) {
 void introBeamLoop() {
   static uint8_t rowNumber = BEAM_COL_LEN - 1;
 
-  EVERY_N_MILLISECONDS_I(thisTimer, durationA) {
+  EVERY_N_MILLISECONDS_I(thisTimer, beamLoopSpeed) {
     setBeamRow(rowNumber, beamColor);
     if (rowNumber <= 0) {
       beamIntroTriggered = true;
@@ -149,7 +148,7 @@ void introBeamLoop() {
 }
 
 /* Cubic eased Wave */
-void beamWave() {
+void beamWaveEase() {
   static uint8_t easeOutVal = 0;
   static uint8_t lerpVal = 0;
   static int8_t wavePos = 0;
@@ -338,7 +337,10 @@ void turnOff() {
   FastLED.showColor(CRGB(0, 0, 0), 0);
 }
 
-void readPower(Request &req, Response &res) { res.print(isOff ? "off" : "on"); }
+void readPower(Request &req, Response &res) { 
+  res.print(isOff ? "off" : "on");
+
+ }
 
 void updatePower(Request &req, Response &res) {
   String body = req.readString();
@@ -367,7 +369,6 @@ void setup() {
   delay(10);
   initWifi();
   initOTA();
-  // initServer();
   initApi();
 
   FastLED.setMaxPowerInVoltsAndMilliamps(5, 8000);
@@ -393,7 +394,7 @@ void mainBeamLoop() {
     introBeamLoop();
   } else {
     // ringWaveBeamLoop();
-    beamWave();
+    beamWaveEase();
   }
 }
 
