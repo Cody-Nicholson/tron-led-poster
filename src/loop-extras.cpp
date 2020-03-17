@@ -118,3 +118,9 @@
 
   // Serial.println("HTTP server started");
 //}
+
+/* White Ring Colors  */
+// const CHSV ringColor = CHSV(HUE_BLUE, 200, 140);
+// const CHSV ringInnerColor = CHSV(HUE_BLUE, 200, 100);
+// const CHSV ringOuterColor = CHSV(HUE_BLUE, 200, 85);
+// const CHSV beamColor = CHSV(HUE_BLUE, 225, 60);

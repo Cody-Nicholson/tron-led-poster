@@ -6,6 +6,7 @@
 #include <ESP8266WiFiMulti.h>
 #include <FastLED.h>
 #include <string>
+
 /* Project H Files */
 #include <Point.h>
 #include <creds.h>
@@ -45,7 +46,7 @@ const uint8_t INACTIVE_SLOT = 255;
 uint8_t beamToStrip[BEAM_COL_LEN][3];
 uint8_t lettersToStrip[4][LETTER_ROW_LEN];
 
-uint16_t beamLoopSpeed = 40;  // How often to run Event A [milliseconds]
+uint8_t beamLoopSpeed = 40;
 uint8_t ringWaveSpeed = 50;
 unsigned long startTime;
 unsigned long lastTime;
@@ -53,24 +54,19 @@ unsigned long lastTime;
 boolean beamIntroTriggered = 0;
 boolean suitIntro = 0;
 
-const CHSV ringColor = CHSV(HUE_BLUE, 150, 165);
-const CHSV ringInnerColor = CHSV(HUE_BLUE, 180, 145);
-const CHSV ringOuterColor = CHSV(HUE_BLUE, 185, 135);
-const CHSV beamColor = CHSV(HUE_BLUE, 190, 125);
+CHSV ringColor = CHSV(HUE_BLUE, 150, 165);
+CHSV ringInnerColor = CHSV(HUE_BLUE, 180, 145);
+CHSV ringOuterColor = CHSV(HUE_BLUE, 185, 135);
+CHSV beamColor = CHSV(HUE_BLUE, 190, 125);
 
-// const CHSV ringColor = CHSV(HUE_BLUE, 200, 140);
-// const CHSV ringInnerColor = CHSV(HUE_BLUE, 200, 100);
-// const CHSV ringOuterColor = CHSV(HUE_BLUE, 200, 85);
-// const CHSV beamColor = CHSV(HUE_BLUE, 225, 60);
+CHSV letterBgColor = CHSV(HUE_BLUE, 225, 60);
+CHSV leadLetterColor = CHSV(HUE_BLUE, 20, 100);
+CHSV legacyLetterColor = CHSV(HUE_BLUE, 20, 100);
 
-const CHSV letterBgColor = CHSV(HUE_BLUE, 225, 60);
-const CHSV leadLetterColor = CHSV(HUE_BLUE, 20, 100);
-const CHSV legacyLetterColor = CHSV(HUE_BLUE, 20, 100);
+CHSV suitColorFull = CHSV(HUE_BLUE, 100, 90);
+CHSV suitColorHalf = CHSV(HUE_BLUE, 255, 60);
 
-const CHSV suitColorFull = CHSV(HUE_BLUE, 100, 90);
-const CHSV suitColorHalf = CHSV(HUE_BLUE, 255, 60);
-
-const CHSV lineColor = CHSV(HUE_BLUE, 100, 70);
+CHSV lineColor = CHSV(HUE_BLUE, 100, 70);
 
 const CHSV badOrange = CHSV(21, 241, 150);
 const CHSV otherbadOrange = CHSV(25, 216, 150);
@@ -78,6 +74,24 @@ const CHSV otherbadOrange = CHSV(25, 216, 150);
 void turnOn();
 
 Point *pointList;
+
+void setMasterHue(uint8_t ringHue){
+  letterBgColor = CHSV(ringHue, 225, 60);
+  leadLetterColor = CHSV(ringHue, 20, 100);
+  legacyLetterColor = CHSV(ringHue, 20, 100);
+
+  suitColorFull = CHSV(ringHue, 100, 90);
+  suitColorHalf = CHSV(ringHue, 255, 60);
+
+  lineColor = CHSV(ringHue, 100, 70);
+}
+
+void setRingColors(uint8_t ringHue) {
+  beamColor = CHSV(ringHue, 190, 125);
+  ringOuterColor = CHSV(beamColor.hue, beamColor.sat - 5, beamColor.val + 10);
+  ringInnerColor = CHSV(beamColor.hue, beamColor.sat - 10, beamColor.val + 20);
+  ringColor = CHSV(beamColor.hue, beamColor.sat - 40, beamColor.val + 40);
+}
 
 void setLetterLed(Point point, CRGB color) {
   // Serial.println(lettersToStrip[point.y][point.x]);
@@ -109,7 +123,9 @@ void initBeam() {
   }
 }
 
-boolean isInBeamRange(uint8_t rowNum) { return rowNum >= 0 && rowNum < BEAM_COL_LEN; }
+boolean isInBeamRange(uint8_t rowNum) {
+  return rowNum >= 0 && rowNum < BEAM_COL_LEN;
+}
 
 void setBeamLed(uint8_t ledNum, CRGB color) {
   if (ledNum != INACTIVE_SLOT) {
@@ -337,12 +353,13 @@ void turnOff() {
   FastLED.showColor(CRGB(0, 0, 0), 0);
 }
 
-void readPower(Request &req, Response &res) { 
+void readPower(Request &req, Response &res) {
+  res.set("Access-Control-Allow-Origin", "*");
   res.print(isOff ? "off" : "on");
-
- }
+}
 
 void updatePower(Request &req, Response &res) {
+  res.set("Access-Control-Allow-Origin", "*");
   String body = req.readString();
   Serial.println(body);
   if (body == "on") {
@@ -355,9 +372,19 @@ void updatePower(Request &req, Response &res) {
   }
 }
 
+void updateHue(Request &req, Response &res) {
+  res.set("Access-Control-Allow-Origin", "*");
+  String body = req.readString();
+  uint8_t hue = body.toInt();
+  setRingColors(hue);
+  setMasterHue(hue);
+  res.println("set");
+}
+
 void initApi() {
   app.get("/power", &readPower);
   app.post("/power", &updatePower);
+  app.post("/color/hue", &updateHue);
 
   app.route(staticFiles());
 
