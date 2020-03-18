@@ -1,4 +1,14 @@
 
+// void debugBeamIntro() {
+//   Serial.println();
+//   for (uint8_t i = 0; i < BEAM_COL_LEN; i++) {
+//     for (uint8_t j = 0; j < 3; j++) {
+//       Serial.print(beamToStrip[22 - i][2 - j]);
+//       Serial.print(',');
+//     }
+//     Serial.println();
+//   }
+// }
 
 // void introSuitLoop() {
 //   uint32_t timeDelta = millis() - startTime;

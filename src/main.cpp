@@ -79,8 +79,11 @@ boolean wasOff = false;
 boolean wasOn = false;
 
 void turnOn();
+void turnOff();
 
 Point *pointList;
+
+/* GLOBAL COLOR MODIFIERS */
 
 void setMasterHue(uint8_t ringHue){
   letterBgColor = CHSV(ringHue, 225, 60);
@@ -99,17 +102,14 @@ void setRingColors(uint8_t ringHue) {
   ringColor = CHSV(beamColor.hue, beamColor.sat - 40, beamColor.val + 40);
 }
 
-void setLetterLed(Point point, CRGB color) {
-  // Serial.println(lettersToStrip[point.y][point.x]);
-  letterLeds[lettersToStrip[point.y][point.x]] = color;
-}
-
 void fill_solid(struct CRGB *targetArray, int startFill, int numToFill,
                 const struct CHSV &hsvColor) {
   for (int i = startFill; i < startFill + numToFill; i++) {
     targetArray[i] = hsvColor;
   }
 }
+
+/* BEAM FUNCTIONS */
 
 /* Map matrix to strip position  */
 void initBeam() {
@@ -129,7 +129,7 @@ void initBeam() {
   }
 }
 
-boolean isInBeamRange(uint8_t rowNum) {
+boolean isRowInBeamRange(uint8_t rowNum) {
   return rowNum >= 0 && rowNum < BEAM_COL_LEN;
 }
 
@@ -141,13 +141,14 @@ void setBeamLed(uint8_t ledNum, CRGB color) {
 
 /* Safe array */
 void setBeamLed(uint8_t x, uint8_t y, CHSV color) {
-  if (isInBeamRange(x)) {
+  if (isRowInBeamRange(x)) {
     setBeamLed(beamToStrip[x][y], color);
   }
 }
 
+/* Safe Set Row  */
 void setBeamRow(int8_t rowNum, CRGB color) {
-  if (rowNum >= 0 && rowNum < BEAM_COL_LEN) {
+  if (isRowInBeamRange(rowNum)) {
     setBeamLed(beamToStrip[rowNum][0], color);
     setBeamLed(beamToStrip[rowNum][1], color);
     setBeamLed(beamToStrip[rowNum][2], color);
@@ -193,15 +194,25 @@ void beamWaveEase() {
   }
 }
 
-void lightSuit() {
+void mainBeamLoop() {
+  if (!beamIntroTriggered) {
+    FastLED.show();
+    introBeamLoop();
+  } else {
+    // ringWaveBeamLoop();
+    beamWaveEase();
+  }
+}
+
+/* SUIT FUNCTIONS  */
+
+void lightSuits() {
   fill_solid(suitLeds, NUM_SUIT_LEDS, badOrange);
   fill_solid(quorraSuit, NUM_QUORRA_LEDS, badOrange);
   //fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS, suitColorFull);
 }
 
-void lightRecognizer(){
-  fill_solid(recognizerLeds, NUM_RECOGNIZER_LEDS, badOrange);
-}
+/* TRON LETTER FUNCTIONS   */
 
 void addMoveTo(Point start, Point end, uint8_t &pos,
                Point points[NUM_TRON_LETTER_LEDS]) {
@@ -254,6 +265,17 @@ Point *getTronLetterPattern() {
   return points;
 }
 
+void setLetterLed(Point point, CRGB color) {
+  // Serial.println(lettersToStrip[point.y][point.x]);
+  letterLeds[lettersToStrip[point.y][point.x]] = color;
+}
+
+void initLetters() {
+  initLetterCoords();
+  pointList = getTronLetterPattern();
+  // debugLetterPattern();
+}
+
 void loopLetters() {
   static uint8_t pos = 0;
 
@@ -274,10 +296,18 @@ void loopLetters() {
   }
 }
 
+/* LEGACY LETTERS */
+
 void lightLegacyLetters() {
   for (uint8_t i = NUM_TRON_LETTER_LEDS; i < NUM_LETTER_LEDS; i++) {
     letterLeds[i] = legacyLetterColor;
   }
+}
+
+/* Recognizer Lighting */
+
+void lightRecognizer(){
+  fill_solid(recognizerLeds, NUM_RECOGNIZER_LEDS, badOrange);
 }
 
 void breathLoop() {
@@ -286,11 +316,7 @@ void breathLoop() {
   recognizerLeds[RECOGNIZER_INDEX] = CHSV(HUE_BLUE, 255, breath);
 }
 
-void initLetters() {
-  initLetterCoords();
-  pointList = getTronLetterPattern();
-  // debugLetterPattern();
-}
+/* Solar Sail Lighting  */
 
 void lightSolarSailer() {
   for (int i = 0; i < NUM_LINE_LEDS; i++) {
@@ -298,23 +324,22 @@ void lightSolarSailer() {
   }
 }
 
-void debugBeamIntro() {
-  Serial.println();
-  for (uint8_t i = 0; i < BEAM_COL_LEN; i++) {
-    for (uint8_t j = 0; j < 3; j++) {
-      Serial.print(beamToStrip[22 - i][2 - j]);
-      Serial.print(',');
-    }
-    Serial.println();
+void initWifi() {
+  wifiMulti.addAP(ROUTER_SSID, ROUTER_PASS);
+
+  Serial.println("\nConnecting ...");
+  while (wifiMulti.run() != WL_CONNECTED) {  // Wait for the Wi-Fi to connect
+    delay(250);
+    Serial.print('.');
   }
+  Serial.print("\nConnected to ");
+  Serial.println(WiFi.SSID());  // Tell us what network we're connected to
+  Serial.print("IP address:\t");
+  Serial.println(
+      WiFi.localIP());  // Send the IP address of the ESP8266 to the computer
 }
 
-void turnOff() {
-  Serial.println("Shut that thing down");
-  isOff = true;
-  FastLED.showColor(CRGB(0, 0, 0), 0);
-}
-
+/* ROUTER API Functions  */
 void readPower(Request &req, Response &res) {
   res.print(isOff ? "off" : "on");
 }
@@ -344,21 +369,6 @@ void accessMiddleware(Request &req, Response &res) {
   res.set("Access-Control-Allow-Origin", "*");
 }
 
-void initWifi() {
-  wifiMulti.addAP(ROUTER_SSID, ROUTER_PASS);
-
-  Serial.println("\nConnecting ...");
-  while (wifiMulti.run() != WL_CONNECTED) {  // Wait for the Wi-Fi to connect
-    delay(250);
-    Serial.print('.');
-  }
-  Serial.print("\nConnected to ");
-  Serial.println(WiFi.SSID());  // Tell us what network we're connected to
-  Serial.print("IP address:\t");
-  Serial.println(
-      WiFi.localIP());  // Send the IP address of the ESP8266 to the computer
-}
-
 void initApi() {
   app.use(&accessMiddleware);
   app.get("/power", &readPower);
@@ -386,27 +396,24 @@ void setup() {
 
   lightSolarSailer();
   lightLegacyLetters();
-  lightSuit();
+  lightSuits();
   lightRecognizer();
 }
 
-void mainBeamLoop() {
-  if (!beamIntroTriggered) {
-    FastLED.show();
-    introBeamLoop();
-  } else {
-    // ringWaveBeamLoop();
-    beamWaveEase();
-  }
-}
+/* Gloabal Modifiers  */
 
 void turnOn() {
   Serial.println("Boot UP");
   isOff = false;
   lightSolarSailer();
   lightLegacyLetters();
-  lightSuit();
+  lightSuits();
   lightRecognizer();
+}
+
+void turnOff() {
+  isOff = true;
+  FastLED.showColor(CRGB(0, 0, 0), 0);
 }
 
 void loop() {
