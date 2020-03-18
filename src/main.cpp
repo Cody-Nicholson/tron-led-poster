@@ -53,8 +53,6 @@ uint8_t lettersToStrip[4][LETTER_ROW_LEN];
 
 uint8_t beamLoopSpeed = 40;
 uint8_t ringWaveSpeed = 50;
-unsigned long startTime;
-unsigned long lastTime;
 
 boolean beamIntroTriggered = 0;
 boolean suitIntro = 0;
@@ -75,6 +73,10 @@ CHSV lineColor = CHSV(HUE_BLUE, 100, 70);
 
 const CHSV badOrange = CHSV(21, 241, 150);
 const CHSV otherbadOrange = CHSV(25, 216, 150);
+
+boolean isOff = false;
+boolean wasOff = false;
+boolean wasOn = false;
 
 void turnOn();
 
@@ -191,26 +193,6 @@ void beamWaveEase() {
   }
 }
 
-void ringWaveBeamLoop() {
-  static int8_t wavePos = 22;
-  EVERY_N_MILLISECONDS_I(thisTimer, ringWaveSpeed) {
-    /* Replace Normal beam color  */
-    setBeamRow(wavePos - 3, beamColor);
-    setBeamRow(wavePos - 2, ringOuterColor);
-    setBeamRow(wavePos - 1, ringInnerColor);
-    setBeamRow(wavePos, ringColor);
-    setBeamRow(wavePos + 1, ringInnerColor);
-    setBeamRow(wavePos + 2, ringOuterColor);
-    setBeamRow(wavePos + 3, beamColor);
-
-    FastLED.show();
-    wavePos++;
-    if (wavePos >= BEAM_COL_LEN + 5) {
-      wavePos = 0;
-    }
-  }
-}
-
 void lightSuit() {
   fill_solid(suitLeds, NUM_SUIT_LEDS, badOrange);
   fill_solid(quorraSuit, NUM_QUORRA_LEDS, badOrange);
@@ -259,16 +241,6 @@ void initLetterCoords() {
   }
 }
 
-void debugLetterPattern() {
-  Serial.println();
-  for (uint8_t i = 0; i < NUM_TRON_LETTER_LEDS; i++) {
-    Serial.print(pointList[i].x);
-    Serial.print(',');
-    Serial.print(pointList[i].y);
-    Serial.println();
-  }
-}
-
 Point *getTronLetterPattern() {
   uint8_t pos = 0;
   Point *points = new Point[NUM_TRON_LETTER_LEDS];
@@ -308,21 +280,6 @@ void lightLegacyLetters() {
   }
 }
 
-void initWifi() {
-  wifiMulti.addAP(ROUTER_SSID, ROUTER_PASS);
-
-  Serial.println("\nConnecting ...");
-  while (wifiMulti.run() != WL_CONNECTED) {  // Wait for the Wi-Fi to connect
-    delay(250);
-    Serial.print('.');
-  }
-  Serial.print("\nConnected to ");
-  Serial.println(WiFi.SSID());  // Tell us what network we're connected to
-  Serial.print("IP address:\t");
-  Serial.println(
-      WiFi.localIP());  // Send the IP address of the ESP8266 to the computer
-}
-
 void breathLoop() {
   float breath = (exp(sin(millis() / 2000.0 * PI)) - 0.36787944) * 108.0;
   breath = map(breath, 0, 255, 0, 100);
@@ -352,10 +309,6 @@ void debugBeamIntro() {
   }
 }
 
-boolean isOff = false;
-boolean wasOff = false;
-boolean wasOn = false;
-
 void turnOff() {
   Serial.println("Shut that thing down");
   isOff = true;
@@ -363,12 +316,10 @@ void turnOff() {
 }
 
 void readPower(Request &req, Response &res) {
-  res.set("Access-Control-Allow-Origin", "*");
   res.print(isOff ? "off" : "on");
 }
 
 void updatePower(Request &req, Response &res) {
-  res.set("Access-Control-Allow-Origin", "*");
   String body = req.readString();
   Serial.println(body);
   if (body == "on") {
@@ -382,7 +333,6 @@ void updatePower(Request &req, Response &res) {
 }
 
 void updateHue(Request &req, Response &res) {
-  res.set("Access-Control-Allow-Origin", "*");
   String body = req.readString();
   uint8_t hue = body.toInt();
   setRingColors(hue);
@@ -390,13 +340,31 @@ void updateHue(Request &req, Response &res) {
   res.println("set");
 }
 
+void accessMiddleware(Request &req, Response &res) {
+  res.set("Access-Control-Allow-Origin", "*");
+}
+
+void initWifi() {
+  wifiMulti.addAP(ROUTER_SSID, ROUTER_PASS);
+
+  Serial.println("\nConnecting ...");
+  while (wifiMulti.run() != WL_CONNECTED) {  // Wait for the Wi-Fi to connect
+    delay(250);
+    Serial.print('.');
+  }
+  Serial.print("\nConnected to ");
+  Serial.println(WiFi.SSID());  // Tell us what network we're connected to
+  Serial.print("IP address:\t");
+  Serial.println(
+      WiFi.localIP());  // Send the IP address of the ESP8266 to the computer
+}
+
 void initApi() {
+  app.use(&accessMiddleware);
   app.get("/power", &readPower);
   app.post("/power", &updatePower);
   app.post("/color/hue", &updateHue);
-
   app.route(staticFiles());
-
   server.begin();
 }
 
@@ -412,9 +380,6 @@ void setup() {
   FastLED.addLeds<NEOPIXEL, SUIT_DATA_PIN>(suitLeds, NUM_SUIT_LEDS + NUM_RECOGNIZER_LEDS);
   FastLED.addLeds<NEOPIXEL, LETTERS_DATA_PIN>(letterLeds, NUM_LETTER_LEDS);
   FastLED.addLeds<NEOPIXEL, LINE_DATA_PIN>(quorraAndLineLeds, NUM_QUORRA_LEDS + NUM_LINE_LEDS);
-  
-
-  startTime = millis();
 
   initBeam();
   initLetters();
@@ -423,7 +388,6 @@ void setup() {
   lightLegacyLetters();
   lightSuit();
   lightRecognizer();
-  // debugBeamIntro();
 }
 
 void mainBeamLoop() {
@@ -451,19 +415,7 @@ void loop() {
   if (client.connected()) {
     app.process(&client);
   }
-  // server.handleClient();
-  // api.handleClient();
   ArduinoOTA.handle();
-
-  // if (millis() - startTime > 10000 && !wasOff) {
-  //   wasOff = true;
-  //   turnOff();
-  // }
-
-  // if (millis() - startTime > 20000 && !wasOn) {
-  //   wasOn = true;
-  //   turnOn();
-  // }
 
   if (!isOff) {
     mainBeamLoop();

@@ -124,3 +124,34 @@
 // const CHSV ringInnerColor = CHSV(HUE_BLUE, 200, 100);
 // const CHSV ringOuterColor = CHSV(HUE_BLUE, 200, 85);
 // const CHSV beamColor = CHSV(HUE_BLUE, 225, 60);
+
+
+// void ringWaveBeamLoop() {
+//   static int8_t wavePos = 22;
+//   EVERY_N_MILLISECONDS_I(thisTimer, ringWaveSpeed) {
+//     /* Replace Normal beam color  */
+//     setBeamRow(wavePos - 3, beamColor);
+//     setBeamRow(wavePos - 2, ringOuterColor);
+//     setBeamRow(wavePos - 1, ringInnerColor);
+//     setBeamRow(wavePos, ringColor);
+//     setBeamRow(wavePos + 1, ringInnerColor);
+//     setBeamRow(wavePos + 2, ringOuterColor);
+//     setBeamRow(wavePos + 3, beamColor);
+
+//     FastLED.show();
+//     wavePos++;
+//     if (wavePos >= BEAM_COL_LEN + 5) {
+//       wavePos = 0;
+//     }
+//   }
+// }
+
+// void debugLetterPattern() {
+//   Serial.println();
+//   for (uint8_t i = 0; i < NUM_TRON_LETTER_LEDS; i++) {
+//     Serial.print(pointList[i].x);
+//     Serial.print(',');
+//     Serial.print(pointList[i].y);
+//     Serial.println();
+//   }
+// }
