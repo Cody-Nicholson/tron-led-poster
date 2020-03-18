@@ -25,12 +25,14 @@ Application app;
 #define NUM_TRON_LETTER_LEDS 88
 #define LETTER_ROW_LEN 22
 
-#define NUM_SUIT_LEDS 26  // Includes Recognizer
+#define NUM_SUIT_LEDS 25  // excludes recognizer
 #define NUM_LEFT_SUIT_LEDS 14
 #define NUM_RIGHT_SUIT_LEDS 11
-#define RECOGNIZER_INDEX 25
+#define RECOGNIZER_INDEX 0
+#define NUM_RECOGNIZER_LEDS 7
 
 #define NUM_LINE_LEDS 8
+#define NUM_QUORRA_LEDS 7
 
 #define BEAM_DATA_PIN 1
 #define SUIT_DATA_PIN 2
@@ -38,9 +40,12 @@ Application app;
 #define LINE_DATA_PIN 4
 
 CRGB beamLeds[NUM_BEAM_LEDS];
-CRGB suitLeds[NUM_SUIT_LEDS];
+CRGB suitLeds[NUM_SUIT_LEDS + NUM_RECOGNIZER_LEDS];
 CRGB letterLeds[NUM_LETTER_LEDS];
-CRGB lineLeds[NUM_LINE_LEDS];
+CRGB quorraAndLineLeds[NUM_LINE_LEDS + NUM_QUORRA_LEDS];
+CRGB *quorraSuit = quorraAndLineLeds;
+CRGB *lineLeds = &quorraAndLineLeds[NUM_QUORRA_LEDS];
+CRGB *recognizerLeds = &suitLeds[NUM_SUIT_LEDS];
 
 const uint8_t INACTIVE_SLOT = 255;
 uint8_t beamToStrip[BEAM_COL_LEN][3];
@@ -64,7 +69,7 @@ CHSV leadLetterColor = CHSV(HUE_BLUE, 20, 100);
 CHSV legacyLetterColor = CHSV(HUE_BLUE, 20, 100);
 
 CHSV suitColorFull = CHSV(HUE_BLUE, 100, 90);
-CHSV suitColorHalf = CHSV(HUE_BLUE, 255, 60);
+//  CHSV suitColorHalf = CHSV(HUE_BLUE, 255, 60);
 
 CHSV lineColor = CHSV(HUE_BLUE, 100, 70);
 
@@ -81,7 +86,6 @@ void setMasterHue(uint8_t ringHue){
   legacyLetterColor = CHSV(ringHue, 20, 100);
 
   suitColorFull = CHSV(ringHue, 100, 90);
-  suitColorHalf = CHSV(ringHue, 255, 60);
 
   lineColor = CHSV(ringHue, 100, 70);
 }
@@ -208,8 +212,13 @@ void ringWaveBeamLoop() {
 }
 
 void lightSuit() {
-  fill_solid(suitLeds, NUM_LEFT_SUIT_LEDS, suitColorFull);
-  fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS, suitColorFull);
+  fill_solid(suitLeds, NUM_SUIT_LEDS, badOrange);
+  fill_solid(quorraSuit, NUM_QUORRA_LEDS, badOrange);
+  //fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS, suitColorFull);
+}
+
+void lightRecognizer(){
+  fill_solid(recognizerLeds, NUM_RECOGNIZER_LEDS, badOrange);
 }
 
 void addMoveTo(Point start, Point end, uint8_t &pos,
@@ -317,7 +326,7 @@ void initWifi() {
 void breathLoop() {
   float breath = (exp(sin(millis() / 2000.0 * PI)) - 0.36787944) * 108.0;
   breath = map(breath, 0, 255, 0, 100);
-  suitLeds[RECOGNIZER_INDEX] = CHSV(HUE_BLUE, 255, breath);
+  recognizerLeds[RECOGNIZER_INDEX] = CHSV(HUE_BLUE, 255, breath);
 }
 
 void initLetters() {
@@ -400,9 +409,10 @@ void setup() {
 
   FastLED.setMaxPowerInVoltsAndMilliamps(5, 8000);
   FastLED.addLeds<NEOPIXEL, BEAM_DATA_PIN>(beamLeds, NUM_BEAM_LEDS);
-  FastLED.addLeds<NEOPIXEL, SUIT_DATA_PIN>(suitLeds, NUM_SUIT_LEDS);
+  FastLED.addLeds<NEOPIXEL, SUIT_DATA_PIN>(suitLeds, NUM_SUIT_LEDS + NUM_RECOGNIZER_LEDS);
   FastLED.addLeds<NEOPIXEL, LETTERS_DATA_PIN>(letterLeds, NUM_LETTER_LEDS);
-  FastLED.addLeds<NEOPIXEL, LINE_DATA_PIN>(lineLeds, NUM_LINE_LEDS);
+  FastLED.addLeds<NEOPIXEL, LINE_DATA_PIN>(quorraAndLineLeds, NUM_QUORRA_LEDS + NUM_LINE_LEDS);
+  
 
   startTime = millis();
 
@@ -412,6 +422,7 @@ void setup() {
   lightSolarSailer();
   lightLegacyLetters();
   lightSuit();
+  lightRecognizer();
   // debugBeamIntro();
 }
 
@@ -431,6 +442,7 @@ void turnOn() {
   lightSolarSailer();
   lightLegacyLetters();
   lightSuit();
+  lightRecognizer();
 }
 
 void loop() {
