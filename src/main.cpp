@@ -81,6 +81,9 @@ boolean wasOn = false;
 void turnOn();
 void turnOff();
 
+void setLowBrightness();
+void setNormalBrightness();
+
 Point *pointList;
 
 /* GLOBAL COLOR MODIFIERS */
@@ -207,8 +210,8 @@ void mainBeamLoop() {
 /* SUIT FUNCTIONS  */
 
 void lightSuits() {
-  fill_solid(suitLeds, NUM_SUIT_LEDS, badOrange);
-  fill_solid(quorraSuit, NUM_QUORRA_LEDS, badOrange);
+  fill_solid(suitLeds, NUM_SUIT_LEDS, suitColorFull);
+  fill_solid(quorraSuit, NUM_QUORRA_LEDS, suitColorFull);
   //fill_solid(suitLeds, NUM_RIGHT_SUIT_LEDS, NUM_LEFT_SUIT_LEDS, suitColorFull);
 }
 
@@ -307,12 +310,12 @@ void lightLegacyLetters() {
 /* Recognizer Lighting */
 
 void lightRecognizer(){
-  fill_solid(recognizerLeds, NUM_RECOGNIZER_LEDS, badOrange);
+  fill_solid(recognizerLeds, NUM_RECOGNIZER_LEDS, legacyLetterColor);
 }
 
 void breathLoop() {
   float breath = (exp(sin(millis() / 2000.0 * PI)) - 0.36787944) * 108.0;
-  breath = map(breath, 0, 255, 0, 100);
+  breath = map(breath, 0, 255, 0, 255);
   recognizerLeds[RECOGNIZER_INDEX] = CHSV(HUE_BLUE, 255, breath);
 }
 
@@ -365,6 +368,16 @@ void updateHue(Request &req, Response &res) {
   res.println("set");
 }
 
+void updateBrightness(Request &req, Response &res) {
+  String body = req.readString();
+  if(body == "low") {
+    FastLED.setBrightness(30);
+  } else {
+    FastLED.setBrightness(255);
+  }
+  res.println(body);
+}
+
 void accessMiddleware(Request &req, Response &res) {
   res.set("Access-Control-Allow-Origin", "*");
 }
@@ -374,6 +387,7 @@ void initApi() {
   app.get("/power", &readPower);
   app.post("/power", &updatePower);
   app.post("/color/hue", &updateHue);
+  app.post("/brightness", &updateBrightness);
   app.route(staticFiles());
   server.begin();
 }
